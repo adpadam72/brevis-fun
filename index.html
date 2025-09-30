@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Brevis — Up/Down Game</title>
+  <style>
+    :root{
+      --bg:#0b1226;
+      --card:#0f1b3a;
+      --accent:#2fb0ff;
+      --muted:#9fb3d6;
+      --glass: rgba(255,255,255,0.03);
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:linear-gradient(180deg,var(--bg),#071028);
+      color:#e6f2ff;display:flex;align-items:center;justify-content:center;padding:24px;
+    }
+    .card{
+      width:980px;max-width:100%;background:linear-gradient(180deg,var(--card),rgba(15,27,58,0.6));
+      border-radius:16px;padding:28px;box-shadow:0 10px 40px rgba(2,6,23,0.6);display:flex;gap:24px;align-items:center;
+    }
+    .left{flex:1;}
+    .right{width:320px;padding:18px;border-radius:12px;background:var(--glass);backdrop-filter:blur(6px)}
+    h1{margin:0;font-size:22px}
+    p.lead{color:var(--muted);margin:6px 0 18px}
+
+    .number-box{width:220px;height:220px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:700;letter-spacing:2px;margin:18px 0}
+    .controls{display:flex;gap:12px}
+    button{cursor:pointer;border:0;padding:12px 18px;border-radius:10px;font-weight:600}
+    .btn-up{background:linear-gradient(180deg,var(--accent),#0b7ed6);color:#012139}
+    .btn-down{background:transparent;border:2px solid var(--accent);color:var(--accent)}
+    .info{margin-top:14px;color:var(--muted);font-size:14px}
+    .history{margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;max-height:120px;overflow:auto}
+
+    .brand{font-weight:700;color:var(--accent);}
+    footer{font-size:12px;color:var(--muted);margin-top:12px}
+    .big-hint{font-size:18px;margin-top:6px}
+
+    /* responsive */
+    @media (max-width:900px){.card{flex-direction:column}.right{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="card" role="application" aria-label="Brevis Up Down Game">
+    <div class="left">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="brand">Brevis</div>
+        <h1>Up / Down — Guess the hidden number</h1>
+      </div>
+      <p class="lead">I read brevis.network and built a small themed up/down number guessing game for quick fun.</p>
+
+      <div class="number-box" id="current">—</div>
+
+      <div class="controls" role="group" aria-label="game controls">
+        <button id="btnUp" class="btn-up">UP ▲</button>
+        <button id="btnDown" class="btn-down">DOWN ▼</button>
+        <button id="btnReset" style="background:#0a1728;color:var(--accent);border:1px solid rgba(47,176,255,0.12)">Reset</button>
+      </div>
+
+      <div class="info">
+        <div>Target range: <span id="rangeText">1 — 100</span></div>
+        <div class="big-hint" id="hint">Make a guess! Click UP if you think the hidden number is higher than the shown number, DOWN if lower.</div>
+        <div class="history" id="history" aria-live="polite"></div>
+        <footer>Inspired by Brevis — quick product microcopy & networking features. (Source: brevis.network)</footer>
+      </div>
+    </div>
+
+    <aside class="right">
+      <h3>How to play</h3>
+      <ol>
+        <li>A hidden target number is chosen randomly between the range.</li>
+        <li>The game displays a current guess number.</li>
+        <li>Click <strong>UP</strong> if you think the hidden number is higher than the shown number, or <strong>DOWN</strong> if lower.</li>
+        <li>Each click updates the current number and gives feedback. Try to find the exact number with as few attempts as possible!</li>
+      </ol>
+
+      <div style="margin-top:12px">
+        <label for="range" style="font-size:13px;color:var(--muted)">Choose max range:</label>
+        <select id="range" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04)">
+          <option value="50">1 — 50</option>
+          <option value="100" selected>1 — 100</option>
+          <option value="500">1 — 500</option>
+          <option value="1000">1 — 1000</option>
+        </select>
+      </div>
+
+      <div style="margin-top:14px">
+        <strong>Attempts:</strong> <span id="attempts">0</span>
+      </div>
+
+      <div style="margin-top:12px;font-size:13px;color:var(--muted)">Made for demo. Visit <a href="https://brevis.network/" target="_blank" rel="noopener" style="color:var(--accent)">brevis.network</a> to learn more.</div>
+    </aside>
+  </div>
+
+<script>
+(function(){
+  const currentEl = document.getElementById('current');
+  const hintEl = document.getElementById('hint');
+  const historyEl = document.getElementById('history');
+  const attemptsEl = document.getElementById('attempts');
+  const rangeSelect = document.getElementById('range');
+  const rangeText = document.getElementById('rangeText');
+
+  let maxRange = parseInt(rangeSelect.value,10);
+  let target = rand(1,maxRange);
+  let current = rand(1,maxRange);
+  let attempts = 0;
+  let gameOver = false;
+
+  function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+  function render(){
+    currentEl.textContent = current;
+    attemptsEl.textContent = attempts;
+    rangeText.textContent = `1 — ${maxRange}`;
+  }
+
+  function addHistory(text){
+    const d = document.createElement('div'); d.textContent = text; historyEl.prepend(d);
+    while(historyEl.childElementCount>20) historyEl.removeChild(historyEl.lastChild);
+  }
+
+  function updateGuess(direction){
+    if(gameOver) return;
+    attempts++;
+    if(direction==='up'){
+      // if current already >= target, it's a wrong intuition
+      if(current < maxRange){
+        // move current to a new number between current+1 and maxRange
+        const min = Math.min(current+1,maxRange);
+        current = rand(min,maxRange);
+      }
+    } else {
+      if(current > 1){
+        const max = Math.max(current-1,1);
+        current = rand(1,max);
+      }
+    }
+
+    // provide feedback
+    if(current === target){
+      hintEl.textContent = `🎉 Correct! Target was ${target}. You found it in ${attempts} attempts.`;
+      addHistory(`✅ Found ${target} in ${attempts} attempts.`);
+      gameOver = true;
+    } else {
+      const relation = (target > current) ? 'hidden number is higher than current' : 'hidden number is lower than current';
+      hintEl.textContent = `Hint: ${relation}.`;
+      addHistory(`${direction.toUpperCase()}: current=${current}, attempts=${attempts}`);
+    }
+    render();
+  }
+
+  document.getElementById('btnUp').addEventListener('click', ()=>updateGuess('up'));
+  document.getElementById('btnDown').addEventListener('click', ()=>updateGuess('down'));
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    maxRange = parseInt(rangeSelect.value,10);
+    target = rand(1,maxRange);
+    current = rand(1,maxRange);
+    attempts = 0; gameOver = false; historyEl.innerHTML=''; hintEl.textContent='Make a guess! Click UP if you think the hidden number is higher than the shown number, DOWN if lower.'; render();
+  });
+
+  rangeSelect.addEventListener('change', ()=>{
+    maxRange = parseInt(rangeSelect.value,10);
+    // reset on range change
+    document.getElementById('btnReset').click();
+  });
+
+  // initialize
+  render();
+  // (for accessibility) allow keyboard U and D keys
+  window.addEventListener('keydown', (e)=>{
+    if(e.key.toLowerCase()==='u') document.getElementById('btnUp').click();
+    if(e.key.toLowerCase()==='d') document.getElementById('btnDown').click();
+    if(e.key==='r') document.getElementById('btnReset').click();
+  });
+
+})();
+</script>
+</body>
+</html>
